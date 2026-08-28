@@ -1,0 +1,16 @@
+# Client Node dependencies
+node_modules/
+
+# Build outputs
+dist/
+
+# Local env files
+.env.local
+.env.*.local
+
+# Vite cache
+.vite/
+
+# Logs & OS
+npm-debug.log*
+.DS_Store

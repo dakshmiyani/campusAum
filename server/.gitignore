@@ -1,0 +1,11 @@
+# Server Node dependencies
+node_modules/
+
+# Environment secrets
+.env
+
+# Logs & Database
+*.log
+*.sqlite
+*.sqlite3
+.DS_Store
