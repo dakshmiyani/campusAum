@@ -40,6 +40,35 @@ $$\text{Organization / Trust} \longrightarrow \text{Campus} \longrightarrow \tex
 
 ---
 
+## 🔑 Environment Variables Setup
+
+### Backend (`server/.env`)
+Create a `.env` file inside the `server/` folder using the dummy key template:
+
+```env
+# Server Port Configuration
+PORT=5001
+
+# NeonDB / PostgreSQL Cloud Connection URL Template
+DATABASE_URL=postgresql://neondb_owner:YOUR_NEONDB_PASSWORD@ep-sample-12345.us-east-2.aws.neon.tech/neondb?sslmode=require
+
+# JWT Secret Key
+JWT_SECRET=campusaum_jwt_secret_key_2026_change_in_production
+```
+
+### Frontend (`client/.env`)
+Create a `.env` file inside the `client/` folder using the dummy key template:
+
+```env
+# Client API Base Endpoint
+VITE_API_BASE_URL=http://localhost:5001/api/v1
+
+# Application Title
+VITE_APP_TITLE=CampusAUM Institutional SaaS
+```
+
+---
+
 ## 🚀 Getting Started & Setup Guide
 
 ### 1. Prerequisites
@@ -69,11 +98,9 @@ cd campusAum
    npm install
    ```
 
-2. Configure environment variables in `server/.env`:
-   ```env
-   PORT=5001
-   DATABASE_URL=postgresql://neondb_owner:YOUR_PASSWORD@ep-sample-12345.us-east-2.aws.neon.tech/neondb?sslmode=require
-   JWT_SECRET=campusaum_secret_key_2026
+2. Copy `.env.example` to `.env` and fill in your NeonDB connection string:
+   ```bash
+   cp .env.example .env
    ```
 
 3. Run database migrations & seed initial institutional dataset:
@@ -98,13 +125,18 @@ cd campusAum
    npm install
    ```
 
-2. Start Vite development server:
+2. Copy `.env.example` to `.env`:
+   ```bash
+   cp .env.example .env
+   ```
+
+3. Start Vite development server:
    ```bash
    npm run dev
    ```
    The frontend web application will run on `http://localhost:3000`.
 
-3. Production build (optional verification):
+4. Production build (optional verification):
    ```bash
    npm run build
    ```
@@ -169,6 +201,7 @@ campusAum/
 ├── .gitignore
 ├── README.md
 ├── client/
+│   ├── .env.example         # Client dummy environment keys
 │   ├── src/
 │   │   ├── components/      # UI components, Header, Sidebar, Layout
 │   │   ├── pages/           # Dashboard, Staff Directory, Profile, Wizard, Settings
@@ -180,11 +213,11 @@ campusAum/
 │   ├── vite.config.js
 │   └── package.json
 └── server/
+    ├── .env.example         # Server dummy environment keys
     ├── src/
     │   ├── database/        # Knex config, Migrations & Seed data
     │   ├── middleware/      # Tenant context, Auth & Error handlers
     │   └── modules/         # Modular routes (Staff, Depts, Reports, Settings)
-    ├── .env.example
     ├── index.js
     └── package.json
 ```
