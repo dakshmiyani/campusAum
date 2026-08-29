@@ -17,9 +17,21 @@ export const Dashboard: React.FC = () => {
     async function loadDashboardData() {
       setLoading(true);
       try {
+        let summaryUrl = '/reports/summary?';
+        let staffUrl = '/staff?limit=5&';
+
+        if (activeCampus) {
+          summaryUrl += `campusId=${activeCampus.id}&`;
+          staffUrl += `campusId=${activeCampus.id}&`;
+        }
+        if (activeInstitute) {
+          summaryUrl += `instituteId=${activeInstitute.id}&`;
+          staffUrl += `instituteId=${activeInstitute.id}&`;
+        }
+
         const [sumRes, staffRes] = await Promise.all([
-          api.get('/reports/summary'),
-          api.get('/staff?limit=5'),
+          api.get(summaryUrl),
+          api.get(staffUrl),
         ]);
         setSummary(sumRes.data.data);
         setRecentStaff(staffRes.data.data);

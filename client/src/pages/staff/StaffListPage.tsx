@@ -3,12 +3,12 @@ import { Link, useSearchParams } from 'react-router-dom';
 import api from '../../services/api';
 import { StaffListItem, Department, Designation } from '../../types';
 import { Badge } from '../../components/ui/Badge';
-import { Search, Plus, Download, Mail, Phone, Eye, Trash2, Filter } from 'lucide-react';
+import { Search, Plus, Download, Mail, Phone, Eye, Trash2, Filter, Landmark, GraduationCap } from 'lucide-react';
 import { useTenant } from '../../contexts/TenantContext';
 
 export const StaffListPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { activeInstitute, activeCampus } = useTenant();
+  const { campuses, institutes, activeCampus, activeInstitute, setActiveCampus, setActiveInstitute } = useTenant();
 
   const [staffList, setStaffList] = useState<StaffListItem[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -42,6 +42,8 @@ export const StaffListPage: React.FC = () => {
       setLoading(true);
       try {
         let url = `/staff?search=${encodeURIComponent(search)}`;
+        if (activeCampus) url += `&campusId=${activeCampus.id}`;
+        if (activeInstitute) url += `&instituteId=${activeInstitute.id}`;
         if (selectedDept) url += `&departmentId=${selectedDept}`;
         if (selectedType) url += `&staffType=${selectedType}`;
         if (selectedStatus) url += `&status=${selectedStatus}`;
@@ -103,7 +105,9 @@ export const StaffListPage: React.FC = () => {
         <div>
           <h1 className="text-2xl font-serif font-bold text-[#17243A]">Staff Directory</h1>
           <p className="text-xs text-[#6F6A60]">
-            Comprehensive roster of teaching faculty and non-teaching administrative staff
+            Comprehensive roster of teaching faculty and non-teaching administrative staff for{' '}
+            <strong className="text-[#17243A]">{activeCampus?.name || 'Selected Campus'}</strong>
+            {activeInstitute && <span> — ({activeInstitute.name})</span>}
           </p>
         </div>
 
@@ -138,6 +142,48 @@ export const StaffListPage: React.FC = () => {
             placeholder="Search by name, ID, or email..."
             className="w-full pl-9 pr-3 py-1.5 text-xs bg-[#F8F4EC] border border-[#D8C28A] rounded-md text-[#17243A] focus:outline-hidden focus:border-[#C9A85C]"
           />
+        </div>
+
+        {/* Campus Scope Filter */}
+        <div className="flex items-center space-x-1.5 bg-[#F8F4EC] px-2.5 py-1.5 rounded-md border border-[#D8C28A]">
+          <Landmark className="w-3.5 h-3.5 text-[#C9A85C]" />
+          <select
+            value={activeCampus?.id || ''}
+            onChange={(e) => {
+              const selected = campuses.find((c) => c.id === e.target.value);
+              if (selected) setActiveCampus(selected);
+            }}
+            className="bg-transparent text-xs text-[#17243A] font-bold focus:outline-hidden cursor-pointer"
+          >
+            {campuses.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name} ({c.code})
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Institute Scope Filter (Cascaded by Campus) */}
+        <div className="flex items-center space-x-1.5 bg-[#F8F4EC] px-2.5 py-1.5 rounded-md border border-[#D8C28A]">
+          <GraduationCap className="w-3.5 h-3.5 text-[#C9A85C]" />
+          <select
+            value={activeInstitute?.id || ''}
+            onChange={(e) => {
+              const selected = institutes.find((i) => i.id === e.target.value);
+              if (selected) setActiveInstitute(selected);
+            }}
+            className="bg-transparent text-xs text-[#17243A] font-bold focus:outline-hidden cursor-pointer"
+          >
+            {institutes.length === 0 ? (
+              <option value="">No Institutes</option>
+            ) : (
+              institutes.map((inst) => (
+                <option key={inst.id} value={inst.id}>
+                  {inst.code} — {inst.name}
+                </option>
+              ))
+            )}
+          </select>
         </div>
 
         {/* Department Filter */}

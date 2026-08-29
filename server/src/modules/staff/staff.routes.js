@@ -63,7 +63,11 @@ async function getDetailedStaffById(id, organizationId) {
 router.get('/', async (req, res, next) => {
   try {
     const { organizationId } = req.tenant;
-    const { staffType, departmentId, designationId, status, search, page = 1, limit = 20 } = req.query;
+    const { campusId, instituteId, staffType, departmentId, designationId, status, search, page = 1, limit = 20 } = req.query;
+
+    // Use query param or header tenant scope if provided
+    const filterCampusId = campusId || req.query.campus_id || req.headers['x-campus-id'];
+    const filterInstituteId = instituteId || req.query.institute_id || req.headers['x-institute-id'];
 
     let query = db('staff')
       .join('staff_profiles', 'staff.id', 'staff_profiles.staff_id')
@@ -83,6 +87,14 @@ router.get('/', async (req, res, next) => {
         'designations.name as designation_name',
         'designations.code as designation_code'
       );
+
+    if (filterCampusId && filterCampusId !== 'all') {
+      query = query.where('staff.campus_id', filterCampusId);
+    }
+
+    if (filterInstituteId && filterInstituteId !== 'all') {
+      query = query.where('staff.institute_id', filterInstituteId);
+    }
 
     if (staffType) {
       query = query.where('staff.staff_type', staffType);

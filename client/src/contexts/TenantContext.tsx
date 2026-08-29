@@ -12,6 +12,9 @@ interface TenantContextType {
   setActiveOrg: (org: Organization) => void;
   setActiveCampus: (campus: Campus) => void;
   setActiveInstitute: (inst: Institute) => void;
+  addCampus: (data: { name: string; code: string; address?: string; city?: string; state?: string; pincode?: string }) => Promise<void>;
+  addInstitute: (data: { campus_id: string; name: string; code: string; type: string; address?: string }) => Promise<void>;
+  refreshTenants: () => Promise<void>;
   isLoading: boolean;
 }
 
@@ -28,43 +31,55 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    async function loadTenants() {
-      try {
-        const orgRes = await api.get('/organizations');
-        const orgs = orgRes.data.data;
-        setOrganizations(orgs);
+  const loadTenants = async () => {
+    try {
+      const orgRes = await api.get('/organizations');
+      const orgs = orgRes.data.data;
+      setOrganizations(orgs);
 
-        if (orgs.length > 0) {
-          const currentOrg = orgs[0];
-          setActiveOrgState(currentOrg);
+      if (orgs.length > 0) {
+        const currentOrg = orgs[0];
+        setActiveOrgState(currentOrg);
 
-          const campusRes = await api.get(`/campuses?organization_id=${currentOrg.id}`);
-          const camps = campusRes.data.data;
-          setCampuses(camps);
+        const campusRes = await api.get(`/campuses?organization_id=${currentOrg.id}`);
+        const camps: Campus[] = campusRes.data.data;
+        setCampuses(camps);
 
-          if (camps.length > 0) {
-            const currentCampus = camps[0];
-            setActiveCampusState(currentCampus);
+        if (camps.length > 0) {
+          const currentCampus = activeCampus && camps.some((c) => c.id === activeCampus.id)
+            ? camps.find((c) => c.id === activeCampus.id)!
+            : camps[0];
 
-            const instRes = await api.get(`/institutes?campusId=${currentCampus.id}`);
-            const insts = instRes.data.data;
-            setInstitutes(insts);
+          setActiveCampusState(currentCampus);
 
-            if (insts.length > 0) {
-              const currentInst = insts[0];
-              setActiveInstituteState(currentInst);
-              setTenantHeaders(currentOrg.id, currentCampus.id, currentInst.id);
-            }
+          const instRes = await api.get(`/institutes?campusId=${currentCampus.id}`);
+          const insts: Institute[] = instRes.data.data;
+          setInstitutes(insts);
+
+          if (insts.length > 0) {
+            const currentInst = activeInstitute && insts.some((i) => i.id === activeInstitute.id)
+              ? insts.find((i) => i.id === activeInstitute.id)!
+              : insts[0];
+            setActiveInstituteState(currentInst);
+            setTenantHeaders(currentOrg.id, currentCampus.id, currentInst.id);
+          } else {
+            setActiveInstituteState(null);
+            setTenantHeaders(currentOrg.id, currentCampus.id, '');
           }
+        } else {
+          setActiveCampusState(null);
+          setActiveInstituteState(null);
+          setInstitutes([]);
         }
-      } catch (err) {
-        console.error('Error initializing tenant context:', err);
-      } finally {
-        setIsLoading(false);
       }
+    } catch (err) {
+      console.error('Error initializing tenant context:', err);
+    } finally {
+      setIsLoading(false);
     }
+  };
 
+  useEffect(() => {
     loadTenants();
   }, []);
 
@@ -75,10 +90,22 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
-  const setActiveCampus = (campus: Campus) => {
+  const setActiveCampus = async (campus: Campus) => {
     setActiveCampusState(campus);
-    if (activeOrg && activeInstitute) {
-      setTenantHeaders(activeOrg.id, campus.id, activeInstitute.id);
+    try {
+      // Fetch institutes specifically belonging to the selected campus
+      const instRes = await api.get(`/institutes?campusId=${campus.id}`);
+      const insts: Institute[] = instRes.data.data;
+      setInstitutes(insts);
+
+      const firstInst = insts.length > 0 ? insts[0] : null;
+      setActiveInstituteState(firstInst);
+
+      if (activeOrg) {
+        setTenantHeaders(activeOrg.id, campus.id, firstInst ? firstInst.id : '');
+      }
+    } catch (err) {
+      console.error('Error fetching institutes for campus:', err);
     }
   };
 
@@ -86,6 +113,28 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setActiveInstituteState(inst);
     if (activeOrg && activeCampus) {
       setTenantHeaders(activeOrg.id, activeCampus.id, inst.id);
+    }
+  };
+
+  const addCampus = async (data: { name: string; code: string; address?: string; city?: string; state?: string; pincode?: string }) => {
+    const res = await api.post('/campuses', data);
+    const newCampus: Campus = res.data.data;
+    setCampuses((prev) => [...prev, newCampus]);
+    if (!activeCampus) {
+      await setActiveCampus(newCampus);
+    }
+  };
+
+  const addInstitute = async (data: { campus_id: string; name: string; code: string; type: string; address?: string }) => {
+    const res = await api.post('/institutes', data);
+    const newInstitute: Institute = res.data.data;
+
+    // If added to currently active campus, update active institutes dropdown
+    if (activeCampus && newInstitute.campus_id === activeCampus.id) {
+      setInstitutes((prev) => [...prev, newInstitute]);
+      if (!activeInstitute) {
+        setActiveInstitute(newInstitute);
+      }
     }
   };
 
@@ -101,6 +150,9 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setActiveOrg,
         setActiveCampus,
         setActiveInstitute,
+        addCampus,
+        addInstitute,
+        refreshTenants: loadTenants,
         isLoading,
       }}
     >
@@ -116,3 +168,4 @@ export function useTenant() {
   }
   return context;
 }
+
