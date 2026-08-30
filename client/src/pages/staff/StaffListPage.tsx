@@ -16,10 +16,30 @@ export const StaffListPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   // Filters
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(searchParams.get('search') || '');
   const [selectedDept, setSelectedDept] = useState(searchParams.get('department') || '');
   const [selectedType, setSelectedType] = useState(searchParams.get('type') || '');
   const [selectedStatus, setSelectedStatus] = useState(searchParams.get('status') || '');
+
+  // Synchronize state when URL search parameters change (e.g. sidebar navigation)
+  useEffect(() => {
+    setSelectedType(searchParams.get('type') || '');
+    setSelectedDept(searchParams.get('department') || '');
+    setSelectedStatus(searchParams.get('status') || '');
+    if (searchParams.has('search')) {
+      setSearch(searchParams.get('search') || '');
+    }
+  }, [searchParams]);
+
+  const updateFilter = (key: string, value: string) => {
+    const newParams = new URLSearchParams(searchParams);
+    if (value) {
+      newParams.set(key, value);
+    } else {
+      newParams.delete(key);
+    }
+    setSearchParams(newParams);
+  };
 
   useEffect(() => {
     async function loadFilterOptions() {
@@ -138,7 +158,10 @@ export const StaffListPage: React.FC = () => {
           <input
             type="text"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              updateFilter('search', e.target.value);
+            }}
             placeholder="Search by name, ID, or email..."
             className="w-full pl-9 pr-3 py-1.5 text-xs bg-[#F8F4EC] border border-[#D8C28A] rounded-md text-[#17243A] focus:outline-hidden focus:border-[#C9A85C]"
           />
@@ -191,7 +214,7 @@ export const StaffListPage: React.FC = () => {
           <Filter className="w-3.5 h-3.5 text-[#6F6A60]" />
           <select
             value={selectedDept}
-            onChange={(e) => setSelectedDept(e.target.value)}
+            onChange={(e) => updateFilter('department', e.target.value)}
             className="bg-[#F8F4EC] border border-[#D8C28A] text-[#17243A] text-xs rounded-md px-3 py-1.5 focus:outline-hidden"
           >
             <option value="">All Departments</option>
@@ -206,7 +229,7 @@ export const StaffListPage: React.FC = () => {
         {/* Staff Type Filter */}
         <select
           value={selectedType}
-          onChange={(e) => setSelectedType(e.target.value)}
+          onChange={(e) => updateFilter('type', e.target.value)}
           className="bg-[#F8F4EC] border border-[#D8C28A] text-[#17243A] text-xs rounded-md px-3 py-1.5 focus:outline-hidden"
         >
           <option value="">All Staff Types</option>
@@ -217,7 +240,7 @@ export const StaffListPage: React.FC = () => {
         {/* Status Filter */}
         <select
           value={selectedStatus}
-          onChange={(e) => setSelectedStatus(e.target.value)}
+          onChange={(e) => updateFilter('status', e.target.value)}
           className="bg-[#F8F4EC] border border-[#D8C28A] text-[#17243A] text-xs rounded-md px-3 py-1.5 focus:outline-hidden"
         >
           <option value="">All Statuses</option>
@@ -233,6 +256,7 @@ export const StaffListPage: React.FC = () => {
               setSelectedDept('');
               setSelectedType('');
               setSelectedStatus('');
+              setSearchParams({});
             }}
             className="text-xs text-[#722B2B] font-semibold hover:underline px-2"
           >

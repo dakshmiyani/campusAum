@@ -83,11 +83,12 @@ export const Sidebar: React.FC = () => {
               <NavLink
                 to="/staff"
                 end
-                className={({ isActive }) =>
-                  `flex items-center space-x-2.5 px-3 py-2 rounded-md transition-colors ${
-                    isActive ? 'bg-[#C9A85C]/20 text-[#17243A] font-bold border-l-2 border-[#C9A85C]' : 'text-[#6F6A60] hover:text-[#17243A] hover:bg-[#F8F4EC]'
-                  }`
-                }
+                className={() => {
+                  const isAllStaff = location.pathname === '/staff' && !location.search.includes('type=');
+                  return `flex items-center space-x-2.5 px-3 py-2 rounded-md transition-colors ${
+                    isAllStaff ? 'bg-[#C9A85C]/20 text-[#17243A] font-bold border-l-2 border-[#C9A85C]' : 'text-[#6F6A60] hover:text-[#17243A] hover:bg-[#F8F4EC]'
+                  }`;
+                }}
               >
                 <Users className="w-3.5 h-3.5" />
                 <span>All Staff</span>
