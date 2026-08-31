@@ -173,13 +173,30 @@ router.post('/', async (req, res, next) => {
       designationId = defaultDesig ? defaultDesig.id : 'desig-03';
     }
 
+    // Map campus_id and institute_id directly from selected department for 100% data integrity
+    let targetCampusId = body.campusId || campusId;
+    let targetInstituteId = body.instituteId || instituteId;
+
+    if (departmentId) {
+      const deptMap = await db('departments')
+        .join('institutes', 'departments.institute_id', 'institutes.id')
+        .select('departments.institute_id', 'institutes.campus_id')
+        .where('departments.id', departmentId)
+        .first();
+
+      if (deptMap) {
+        targetInstituteId = deptMap.institute_id;
+        targetCampusId = deptMap.campus_id;
+      }
+    }
+
     await db.transaction(async (trx) => {
       // 1. Staff table
       await trx('staff').insert({
         id: staffId,
         organization_id: organizationId,
-        campus_id: body.campusId || campusId,
-        institute_id: body.instituteId || instituteId,
+        campus_id: targetCampusId,
+        institute_id: targetInstituteId,
         department_id: departmentId,
         designation_id: designationId,
         employee_code: employeeCode,

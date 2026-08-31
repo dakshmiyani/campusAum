@@ -1,45 +1,89 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../services/api';
-import { Department } from '../../types';
-import { Building, Plus, Users, UserCheck } from 'lucide-react';
+import { Department, Institute } from '../../types';
+import { Building, Plus, Landmark, GraduationCap } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { useTenant } from '../../contexts/TenantContext';
 
 export const DepartmentsPage: React.FC = () => {
-  const { activeInstitute } = useTenant();
+  const { campuses, institutes, activeCampus, activeInstitute } = useTenant();
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+
+  // Modal form states
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [description, setDescription] = useState('');
+  const [selectedCampusId, setSelectedCampusId] = useState(activeCampus?.id || '');
+  const [selectedInstituteId, setSelectedInstituteId] = useState(activeInstitute?.id || '');
+
+  const loadDepts = async () => {
+    setLoading(true);
+    try {
+      let url = '/departments';
+      if (activeCampus) {
+        url += `?campusId=${activeCampus.id}`;
+        if (activeInstitute) {
+          url += `&instituteId=${activeInstitute.id}`;
+        }
+      }
+      const res = await api.get(url);
+      setDepartments(res.data.data);
+    } catch (err) {
+      console.error('Error fetching departments:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    async function loadDepts() {
-      setLoading(true);
+    loadDepts();
+  }, [activeCampus, activeInstitute]);
+
+  const handleOpenModal = () => {
+    setSelectedCampusId(activeCampus?.id || (campuses.length > 0 ? campuses[0].id : ''));
+    setSelectedInstituteId(activeInstitute?.id || (institutes.length > 0 ? institutes[0].id : ''));
+    setShowModal(true);
+  };
+
+  const [modalInstitutes, setModalInstitutes] = useState<Institute[]>([]);
+
+  useEffect(() => {
+    if (!selectedCampusId) return;
+    async function loadModalInstitutes() {
       try {
-        const res = await api.get('/departments');
-        setDepartments(res.data.data);
+        const res = await api.get(`/institutes?campusId=${selectedCampusId}`);
+        const insts: Institute[] = res.data.data;
+        setModalInstitutes(insts);
+        if (insts.length > 0) {
+          setSelectedInstituteId((prev) => (insts.some((i) => i.id === prev) ? prev : insts[0].id));
+        } else {
+          setSelectedInstituteId('');
+        }
       } catch (err) {
-        console.error('Error fetching departments:', err);
-      } finally {
-        setLoading(false);
+        console.error('Error fetching institutes for selected campus:', err);
       }
     }
-    loadDepts();
-  }, [activeInstitute]);
+    loadModalInstitutes();
+  }, [selectedCampusId]);
 
   const handleCreate = async () => {
     if (!name || !code) return;
     try {
-      await api.post('/departments', { name, code, description });
+      await api.post('/departments', {
+        name,
+        code,
+        description,
+        campusId: selectedCampusId,
+        instituteId: selectedInstituteId,
+      });
       alert('Department created successfully!');
       setShowModal(false);
       setName('');
       setCode('');
       setDescription('');
-      const res = await api.get('/departments');
-      setDepartments(res.data.data);
+      await loadDepts();
     } catch (err) {
       alert('Failed to create department.');
     }
@@ -47,15 +91,17 @@ export const DepartmentsPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between border-b border-[#D8C28A] pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[#D8C28A] pb-4 gap-4">
         <div>
           <h1 className="text-2xl font-serif font-bold text-[#17243A]">Academic & Administrative Departments</h1>
           <p className="text-xs text-[#6F6A60]">
-            Manage institutional departments, HOD allocations, and headcount
+            Manage institutional departments, HOD allocations, and campus headcount for{' '}
+            <strong className="text-[#17243A]">{activeCampus?.name || 'Selected Campus'}</strong>
+            {activeInstitute && <span> — ({activeInstitute.name})</span>}
           </p>
         </div>
         <button
-          onClick={() => setShowModal(true)}
+          onClick={handleOpenModal}
           className="inline-flex items-center space-x-2 bg-[#C9A85C] text-[#17243A] px-4 py-2 rounded-lg text-xs font-bold shadow-xs hover:bg-[#D9BE7A] transition-all"
         >
           <Plus className="w-4 h-4" />
@@ -65,10 +111,14 @@ export const DepartmentsPage: React.FC = () => {
 
       {loading ? (
         <div className="p-12 text-center text-xs text-[#6F6A60]">Loading departments...</div>
+      ) : departments.length === 0 ? (
+        <div className="p-12 text-center text-xs text-[#6F6A60] bg-[#EFE8DA] rounded-xl border border-[#D8C28A]">
+          No departments found for the selected campus scope. Click <strong>+ Add Department</strong> to create one.
+        </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {departments.map((dept) => (
-            <div key={dept.id} className="custom-card p-5 space-y-4 flex flex-col justify-between shadow-xs">
+            <div key={dept.id} className="custom-card p-5 space-y-4 flex flex-col justify-between shadow-xs border border-[#D8C28A] rounded-xl bg-[#EFE8DA]">
               <div className="space-y-2">
                 <div className="flex items-center justify-between border-b border-[#D8C28A] pb-2">
                   <span className="font-mono font-bold text-xs text-[#722B2B] bg-[#722B2B]/10 px-2 py-0.5 rounded-md">
@@ -76,6 +126,17 @@ export const DepartmentsPage: React.FC = () => {
                   </span>
                   <Badge variant="active">ACTIVE</Badge>
                 </div>
+
+                <div className="flex items-center space-x-1.5 text-[11px] text-[#C9A85C] font-bold">
+                  <Landmark className="w-3 h-3 shrink-0" />
+                  <span className="truncate">{dept.campus_name || activeCampus?.name || 'Campus'}</span>
+                  {dept.institute_code && (
+                    <span className="bg-[#17243A] text-[#C9A85C] text-[9px] px-1.5 py-0.2 rounded-xs ml-1 font-mono">
+                      {dept.institute_code}
+                    </span>
+                  )}
+                </div>
+
                 <h3 className="text-base font-serif font-bold text-[#17243A]">{dept.name}</h3>
                 <p className="text-xs text-[#6F6A60]">{dept.description || 'Institutional Academic Department'}</p>
               </div>
@@ -103,6 +164,54 @@ export const DepartmentsPage: React.FC = () => {
         <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
           <div className="bg-[#EFE8DA] border border-[#D8C28A] rounded-xl p-6 w-full max-w-md space-y-4 shadow-xl">
             <h3 className="text-base font-serif font-bold text-[#17243A]">Create New Department</h3>
+            
+            {/* Target Campus */}
+            <div>
+              <label className="block text-xs font-bold text-[#17243A] mb-1">Target Campus *</label>
+              <div className="flex items-center space-x-2 bg-[#F8F4EC] border border-[#D8C28A] rounded-md px-2.5 py-1.5">
+                <Landmark className="w-3.5 h-3.5 text-[#C9A85C]" />
+                <select
+                  value={selectedCampusId}
+                  onChange={(e) => {
+                    const cId = e.target.value;
+                    setSelectedCampusId(cId);
+                    const availableInsts = institutes.filter((i) => i.campus_id === cId);
+                    setSelectedInstituteId(availableInsts.length > 0 ? availableInsts[0].id : '');
+                  }}
+                  className="w-full text-xs bg-transparent text-[#17243A] font-bold focus:outline-hidden"
+                >
+                  {campuses.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} ({c.code})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Target Institute */}
+            <div>
+              <label className="block text-xs font-bold text-[#17243A] mb-1">Target Institute *</label>
+              <div className="flex items-center space-x-2 bg-[#F8F4EC] border border-[#D8C28A] rounded-md px-2.5 py-1.5">
+                <GraduationCap className="w-3.5 h-3.5 text-[#C9A85C]" />
+                <select
+                  value={selectedInstituteId}
+                  onChange={(e) => setSelectedInstituteId(e.target.value)}
+                  className="w-full text-xs bg-transparent text-[#17243A] font-bold focus:outline-hidden"
+                >
+                  {modalInstitutes.length === 0 ? (
+                    <option value="">No Institutes for this Campus</option>
+                  ) : (
+                    modalInstitutes.map((inst) => (
+                      <option key={inst.id} value={inst.id}>
+                        {inst.code} — {inst.name}
+                      </option>
+                    ))
+                  )}
+                </select>
+              </div>
+            </div>
+
             <div>
               <label className="block text-xs font-bold text-[#17243A] mb-1">Department Name *</label>
               <input
@@ -113,6 +222,7 @@ export const DepartmentsPage: React.FC = () => {
                 className="w-full text-xs p-2 bg-[#F8F4EC] border border-[#D8C28A] rounded-md text-[#17243A]"
               />
             </div>
+
             <div>
               <label className="block text-xs font-bold text-[#17243A] mb-1">Department Code *</label>
               <input
@@ -123,6 +233,7 @@ export const DepartmentsPage: React.FC = () => {
                 className="w-full text-xs p-2 bg-[#F8F4EC] border border-[#D8C28A] rounded-md text-[#17243A]"
               />
             </div>
+
             <div>
               <label className="block text-xs font-bold text-[#17243A] mb-1">Description</label>
               <textarea
@@ -132,6 +243,7 @@ export const DepartmentsPage: React.FC = () => {
                 className="w-full text-xs p-2 bg-[#F8F4EC] border border-[#D8C28A] rounded-md text-[#17243A]"
               />
             </div>
+
             <div className="flex justify-end space-x-3 pt-2">
               <button
                 onClick={() => setShowModal(false)}

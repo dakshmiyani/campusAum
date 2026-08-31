@@ -433,7 +433,7 @@ export const AddStaffPage: React.FC = () => {
                 >
                   {departments.map((d) => (
                     <option key={d.id} value={d.id}>
-                      {d.name} ({d.code})
+                      {d.name} ({d.code}) {d.campus_name ? `— ${d.campus_name}` : ''} {d.institute_code ? `[${d.institute_code}]` : ''}
                     </option>
                   ))}
                 </select>

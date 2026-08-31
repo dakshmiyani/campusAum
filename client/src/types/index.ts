@@ -35,6 +35,11 @@ export interface Institute {
 export interface Department {
   id: string;
   institute_id: string;
+  institute_name?: string;
+  institute_code?: string;
+  campus_id?: string;
+  campus_name?: string;
+  campus_code?: string;
   name: string;
   code: string;
   description?: string;
