@@ -13,7 +13,11 @@ interface TenantContextType {
   setActiveCampus: (campus: Campus) => void;
   setActiveInstitute: (inst: Institute) => void;
   addCampus: (data: { name: string; code: string; address?: string; city?: string; state?: string; pincode?: string }) => Promise<void>;
+  updateCampus: (id: string, data: Partial<Campus>) => Promise<void>;
+  deleteCampus: (id: string) => Promise<void>;
   addInstitute: (data: { campus_id: string; name: string; code: string; type: string; address?: string }) => Promise<void>;
+  updateInstitute: (id: string, data: Partial<Institute>) => Promise<void>;
+  deleteInstitute: (id: string) => Promise<void>;
   refreshTenants: () => Promise<void>;
   isLoading: boolean;
 }
@@ -125,6 +129,16 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
+  const updateCampus = async (id: string, data: Partial<Campus>) => {
+    await api.put(`/campuses/${id}`, data);
+    await loadTenants();
+  };
+
+  const deleteCampus = async (id: string) => {
+    await api.delete(`/campuses/${id}`);
+    await loadTenants();
+  };
+
   const addInstitute = async (data: { campus_id: string; name: string; code: string; type: string; address?: string }) => {
     const res = await api.post('/institutes', data);
     const newInstitute: Institute = res.data.data;
@@ -136,6 +150,16 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setActiveInstitute(newInstitute);
       }
     }
+  };
+
+  const updateInstitute = async (id: string, data: Partial<Institute>) => {
+    await api.put(`/institutes/${id}`, data);
+    await loadTenants();
+  };
+
+  const deleteInstitute = async (id: string) => {
+    await api.delete(`/institutes/${id}`);
+    await loadTenants();
   };
 
   return (
@@ -151,7 +175,11 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setActiveCampus,
         setActiveInstitute,
         addCampus,
+        updateCampus,
+        deleteCampus,
         addInstitute,
+        updateInstitute,
+        deleteInstitute,
         refreshTenants: loadTenants,
         isLoading,
       }}

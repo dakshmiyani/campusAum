@@ -131,5 +131,157 @@ router.post('/institutes', async (req, res, next) => {
   }
 });
 
+// PUT /campuses/:id - Edit Campus (Super Admin)
+router.put('/campuses/:id', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { name, code, address, city, state, pincode, status } = req.body;
+
+    const existing = await db('campuses').where({ id }).first();
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Campus not found.' });
+    }
+
+    const auditData = {
+      ...(name && { name }),
+      ...(code && { code: code.toUpperCase() }),
+      ...(address !== undefined && { address }),
+      ...(city !== undefined && { city }),
+      ...(state !== undefined && { state }),
+      ...(pincode !== undefined && { pincode }),
+      ...(status && { status }),
+    };
+
+    const updatedFields = {
+      ...auditData,
+      updated_at: db.fn.now(),
+    };
+
+    await db('campuses').where({ id }).update(updatedFields);
+
+    await db('audit_logs').insert({
+      id: `log-${uuidv4().slice(0, 8)}`,
+      organization_id: existing.organization_id,
+      user_id: req.user?.id || 'admin',
+      action: 'UPDATE',
+      entity_type: 'CAMPUS',
+      entity_id: id,
+      new_values: JSON.stringify(auditData),
+    });
+
+    console.log('[CampusAUM API]: Updated Campus:', id);
+    res.json({ success: true, message: 'Campus updated successfully.' });
+  } catch (err) {
+    console.error('Error updating campus:', err);
+    next(err);
+  }
+});
+
+// DELETE /campuses/:id - Soft Delete Campus (Super Admin)
+router.delete('/campuses/:id', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const existing = await db('campuses').where({ id }).first();
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Campus not found.' });
+    }
+
+    await db('campuses').where({ id }).update({ status: 'INACTIVE', updated_at: db.fn.now() });
+    await db('institutes').where({ campus_id: id }).update({ status: 'INACTIVE', updated_at: db.fn.now() });
+
+    await db('audit_logs').insert({
+      id: `log-${uuidv4().slice(0, 8)}`,
+      organization_id: existing.organization_id,
+      user_id: req.user?.id || 'admin',
+      action: 'DELETE',
+      entity_type: 'CAMPUS',
+      entity_id: id,
+      new_values: JSON.stringify({ status: 'INACTIVE' }),
+    });
+
+    console.log('[CampusAUM API]: Soft-deleted Campus:', id);
+    res.json({ success: true, message: 'Campus deactivated successfully.' });
+  } catch (err) {
+    console.error('Error deleting campus:', err);
+    next(err);
+  }
+});
+
+// PUT /institutes/:id - Edit Institute (Super Admin)
+router.put('/institutes/:id', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { campusId, campus_id, name, code, type, address, status } = req.body;
+
+    const existing = await db('institutes').where({ id }).first();
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Institute not found.' });
+    }
+
+    const targetCampusId = campusId || campus_id;
+
+    const auditData = {
+      ...(targetCampusId && { campus_id: targetCampusId }),
+      ...(name && { name }),
+      ...(code && { code: code.toUpperCase() }),
+      ...(type && { type }),
+      ...(address !== undefined && { address }),
+      ...(status && { status }),
+    };
+
+    const updatedFields = {
+      ...auditData,
+      updated_at: db.fn.now(),
+    };
+
+    await db('institutes').where({ id }).update(updatedFields);
+
+    await db('audit_logs').insert({
+      id: `log-${uuidv4().slice(0, 8)}`,
+      organization_id: req.tenant?.organizationId || 'org-apex-01',
+      user_id: req.user?.id || 'admin',
+      action: 'UPDATE',
+      entity_type: 'INSTITUTE',
+      entity_id: id,
+      new_values: JSON.stringify(auditData),
+    });
+
+    console.log('[CampusAUM API]: Updated Institute:', id);
+    res.json({ success: true, message: 'Institute updated successfully.' });
+  } catch (err) {
+    console.error('Error updating institute:', err);
+    next(err);
+  }
+});
+
+// DELETE /institutes/:id - Soft Delete Institute (Super Admin)
+router.delete('/institutes/:id', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const existing = await db('institutes').where({ id }).first();
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Institute not found.' });
+    }
+
+    await db('institutes').where({ id }).update({ status: 'INACTIVE', updated_at: db.fn.now() });
+
+    await db('audit_logs').insert({
+      id: `log-${uuidv4().slice(0, 8)}`,
+      organization_id: req.tenant?.organizationId || 'org-apex-01',
+      user_id: req.user?.id || 'admin',
+      action: 'DELETE',
+      entity_type: 'INSTITUTE',
+      entity_id: id,
+      new_values: JSON.stringify({ status: 'INACTIVE' }),
+    });
+
+    console.log('[CampusAUM API]: Soft-deleted Institute:', id);
+    res.json({ success: true, message: 'Institute deactivated successfully.' });
+  } catch (err) {
+    console.error('Error deleting institute:', err);
+    next(err);
+  }
+});
+
 module.exports = router;
 
