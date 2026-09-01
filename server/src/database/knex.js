@@ -20,32 +20,17 @@ const database = parsed.pathname ? parsed.pathname.replace('/', '') : 'neondb';
 
 const db = knex({
   client: 'pg',
-  connection: async () => {
-    let resolvedHost = hostname;
-    try {
-      // Resolve IPv4 address using public DNS resolvers if local DNS lookup is restricted
-      const resolver = new (require('dns').Resolver)();
-      resolver.setServers(['8.8.8.8', '1.1.1.1']);
-      const addresses = await new Promise((resolve, reject) => {
-        resolver.resolve4(hostname, (err, addrs) => (err ? reject(err) : resolve(addrs)));
-      });
-      if (addresses && addresses.length > 0) {
-        resolvedHost = addresses[0];
-      }
-    } catch (err) {
-      console.warn('[CampusAUM DNS Notice]: Connecting via hostname', hostname);
-    }
-
-    return {
-      host: resolvedHost,
-      port,
-      user,
-      password,
-      database,
-      ssl: { rejectUnauthorized: false, servername: hostname },
-    };
+  connection: {
+    connectionString,
+    ssl: { rejectUnauthorized: false },
   },
-  pool: { min: 1, max: 10 },
+  pool: {
+    min: 1,
+    max: 15,
+    acquireTimeoutMillis: 60000,
+    createTimeoutMillis: 30000,
+    idleTimeoutMillis: 30000,
+  },
 });
 
 module.exports = db;

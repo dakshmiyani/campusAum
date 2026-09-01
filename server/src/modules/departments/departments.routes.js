@@ -87,4 +87,78 @@ router.post('/', async (req, res, next) => {
   }
 });
 
+// PUT /api/v1/departments/:id
+router.put('/:id', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { name, code, description, hodStaffId, instituteId, status } = req.body;
+
+    const existing = await db('departments').where({ id }).first();
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Department not found.' });
+    }
+
+    const auditData = {
+      ...(name && { name }),
+      ...(code && { code: code.toUpperCase() }),
+      ...(description !== undefined && { description }),
+      ...(hodStaffId !== undefined && { hod_staff_id: hodStaffId || null }),
+      ...(instituteId && { institute_id: instituteId }),
+      ...(status && { status }),
+    };
+
+    const updatedFields = {
+      ...auditData,
+      updated_at: db.fn.now(),
+    };
+
+    await db('departments').where({ id }).update(updatedFields);
+
+    await db('audit_logs').insert({
+      id: `log-${uuidv4().slice(0, 8)}`,
+      organization_id: req.tenant?.organizationId || 'org-apex-01',
+      user_id: req.user?.id || 'admin',
+      action: 'UPDATE',
+      entity_type: 'DEPARTMENT',
+      entity_id: id,
+      new_values: JSON.stringify(auditData),
+    });
+
+    console.log('[CampusAUM API]: Updated department:', id);
+    res.json({ success: true, message: 'Department updated successfully.' });
+  } catch (err) {
+    console.error('Error updating department:', err);
+    next(err);
+  }
+});
+
+// DELETE /api/v1/departments/:id
+router.delete('/:id', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const existing = await db('departments').where({ id }).first();
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Department not found.' });
+    }
+
+    await db('departments').where({ id }).update({ status: 'INACTIVE', updated_at: db.fn.now() });
+
+    await db('audit_logs').insert({
+      id: `log-${uuidv4().slice(0, 8)}`,
+      organization_id: req.tenant?.organizationId || 'org-apex-01',
+      user_id: req.user?.id || 'admin',
+      action: 'DELETE',
+      entity_type: 'DEPARTMENT',
+      entity_id: id,
+      new_values: JSON.stringify({ status: 'INACTIVE' }),
+    });
+
+    console.log('[CampusAUM API]: Soft-deleted department:', id);
+    res.json({ success: true, message: 'Department deactivated successfully.' });
+  } catch (err) {
+    console.error('Error deleting department:', err);
+    next(err);
+  }
+});
+
 module.exports = router;
