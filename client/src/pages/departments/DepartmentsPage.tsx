@@ -147,7 +147,7 @@ export const DepartmentsPage: React.FC = () => {
           className="inline-flex items-center space-x-2 bg-[#C9A85C] text-[#17243A] px-4 py-2 rounded-lg text-xs font-bold shadow-xs hover:bg-[#D9BE7A] transition-all cursor-pointer"
         >
           <Plus className="w-4 h-4" />
-          <span>+ Add Department</span>
+          <span>Add Department</span>
         </button>
       </div>
 
