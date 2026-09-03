@@ -329,20 +329,41 @@ router.patch('/:id/status', async (req, res, next) => {
   }
 });
 
+function formatDMY(dateInput) {
+  if (!dateInput) {
+    const d = new Date();
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}-${month}-${year}`;
+  }
+  if (typeof dateInput === 'string' && dateInput.includes('-') && dateInput.split('-')[0].length === 4) {
+    const [y, m, d] = dateInput.split('T')[0].split('-');
+    return `${d}-${m}-${y}`;
+  }
+  return dateInput;
+}
+
 // POST /api/v1/staff/:id/remarks - Add evaluation remark
 router.post('/:id/remarks', async (req, res, next) => {
   try {
-    const { remarkType, remark, rating, createdByName } = req.body;
+    const { remarkType, remark, rating, createdByName, date } = req.body;
+    const todayDMY = formatDMY(date);
+    const finalRemark = (remark && (remark.startsWith('[') || remark.includes(todayDMY)))
+      ? remark
+      : `[Date: ${todayDMY}] ${remark}`;
 
     const remarkId = `rem-${uuidv4().slice(0, 8)}`;
     await db('staff_remarks').insert({
       id: remarkId,
       staff_id: req.params.id,
       remark_type: remarkType || 'REPORTING_AUTHORITY',
-      remark,
+      remark: finalRemark,
       rating: rating || 'GOOD',
       created_by: req.user?.id || 'admin',
       created_by_name: createdByName || 'Institutional Authority',
+      created_at: db.fn.now(),
+      updated_at: db.fn.now(),
     });
 
     res.status(201).json({ success: true, message: 'Evaluation remark added.' });
