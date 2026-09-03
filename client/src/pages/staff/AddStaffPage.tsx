@@ -2,18 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../../services/api';
 import { Department, Designation, QualificationMaster } from '../../types';
-import { ArrowLeft, ArrowRight, CheckCircle, User, Mail, Briefcase, GraduationCap, Clock, BookOpen, FileText, Check } from 'lucide-react';
-
-const STEPS = [
-  { id: 1, name: 'Personal Information', icon: User },
-  { id: 2, name: 'Contact & Address', icon: Mail },
-  { id: 3, name: 'Employment Details', icon: Briefcase },
-  { id: 4, name: 'Academic Qualifications', icon: GraduationCap },
-  { id: 5, name: 'Work Experience', icon: Clock },
-  { id: 6, name: 'Subjects Allocation', icon: BookOpen },
-  { id: 7, name: 'Documents Upload', icon: FileText },
-  { id: 8, name: 'Review & Submit', icon: CheckCircle },
-];
+import { ArrowLeft, CheckCircle, User } from 'lucide-react';
 
 export const AddStaffPage: React.FC = () => {
   const navigate = useNavigate();
@@ -22,6 +11,7 @@ export const AddStaffPage: React.FC = () => {
   const [designations, setDesignations] = useState<Designation[]>([]);
   const [qualifications, setQualifications] = useState<QualificationMaster[]>([]);
   const [loading, setLoading] = useState(false);
+  const [reviewError, setReviewError] = useState('');
 
   // Form State
   const [formData, setFormData] = useState({
@@ -107,15 +97,36 @@ export const AddStaffPage: React.FC = () => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleNext = () => {
-    if (currentStep < 8) setCurrentStep((prev) => prev + 1);
-  };
-
   const handlePrev = () => {
     if (currentStep > 1) setCurrentStep((prev) => prev - 1);
   };
 
+  const findMissingRequiredField = () => {
+    const requiredFields = [
+      ['First Name', formData.firstName],
+      ['Last Name', formData.lastName],
+      ['Official Email', formData.officialEmail],
+      ['Official Mobile', formData.officialMobile],
+      ['Employee ID Code', formData.employeeCode],
+      ['Department', formData.departmentId],
+      ['Designation', formData.designationId],
+      ['Highest Degree Name', formData.degreeName],
+      ['University / Institution', formData.institution],
+    ];
+    return requiredFields.find(([, value]) => !value.trim())?.[0];
+  };
+
+  const openReview = () => {
+    setReviewError('');
+    setCurrentStep(8);
+  };
+
   const handleSubmit = async () => {
+    const missingField = findMissingRequiredField();
+    if (missingField) {
+      setReviewError(`Please return to Details and complete: ${missingField}.`);
+      return;
+    }
     setLoading(true);
     try {
       const res = await api.post('/staff', formData);
@@ -143,46 +154,28 @@ export const AddStaffPage: React.FC = () => {
           </p>
         </div>
         <div className="text-xs font-bold text-[#17243A] bg-[#C9A85C]/20 border border-[#C9A85C] px-3 py-1.5 rounded-lg">
-          Step {currentStep} of 8: {STEPS[currentStep - 1].name}
+          {currentStep === 8 ? 'Review & Submit' : 'Staff Details'}
         </div>
       </div>
 
-      {/* 8-Step Wizard Bar */}
-      <div className="bg-[#EFE8DA] border border-[#D8C28A] rounded-xl p-4 shadow-xs overflow-x-auto">
-        <div className="flex items-center justify-between min-w-[700px]">
-          {STEPS.map((s) => {
-            const Icon = s.icon;
-            const isDone = s.id < currentStep;
-            const isCurrent = s.id === currentStep;
-
-            return (
-              <button
-                key={s.id}
-                onClick={() => setCurrentStep(s.id)}
-                className={`flex items-center space-x-2 text-xs font-semibold px-2 py-1 rounded-md transition-all ${
-                  isCurrent
-                    ? 'bg-[#17243A] text-[#C9A85C] shadow-xs'
-                    : isDone
-                    ? 'text-emerald-800'
-                    : 'text-[#6F6A60] hover:text-[#17243A]'
-                }`}
-              >
-                <div
-                  className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] ${
-                    isCurrent
-                      ? 'bg-[#C9A85C] text-[#17243A]'
-                      : isDone
-                      ? 'bg-emerald-200 text-emerald-900'
-                      : 'bg-[#F8F4EC] border border-[#D8C28A]'
-                  }`}
-                >
-                  {isDone ? <Check className="w-3 h-3" /> : s.id}
-                </div>
-                <span className="hidden sm:inline">{s.name}</span>
-              </button>
-            );
-          })}
-        </div>
+      {/* Details and review navigation */}
+      <div className="grid grid-cols-2 overflow-hidden rounded-xl border border-[#D8C28A] bg-[#EFE8DA] p-1 shadow-xs">
+        <button
+          type="button"
+          onClick={() => setCurrentStep(1)}
+          className={`flex items-center justify-center gap-2 rounded-lg px-4 py-3 text-xs font-bold transition-all ${currentStep !== 8 ? 'bg-[#17243A] text-[#C9A85C]' : 'text-[#6F6A60] hover:bg-[#F8F4EC]'}`}
+        >
+          <User className="h-4 w-4" />
+          Details
+        </button>
+        <button
+          type="button"
+          onClick={openReview}
+          className={`flex items-center justify-center gap-2 rounded-lg px-4 py-3 text-xs font-bold transition-all ${currentStep === 8 ? 'bg-[#17243A] text-[#C9A85C]' : 'text-[#6F6A60] hover:bg-[#F8F4EC]'}`}
+        >
+          <CheckCircle className="h-4 w-4" />
+          Review & Submit
+        </button>
       </div>
 
       {/* Main Step Content Form Container */}
@@ -193,7 +186,7 @@ export const AddStaffPage: React.FC = () => {
             <h2 className="text-base font-serif font-bold text-[#17243A] border-b border-[#D8C28A] pb-2">
               01 Personal Information
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-[#17243A] mb-1">First Name *</label>
                 <input
@@ -231,7 +224,7 @@ export const AddStaffPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-[#17243A] mb-1">Gender</label>
                 <select
@@ -282,12 +275,12 @@ export const AddStaffPage: React.FC = () => {
         )}
 
         {/* Step 2: Contact & Address */}
-        {currentStep === 2 && (
+        {currentStep === 1 && (
           <div className="space-y-4">
-            <h2 className="text-base font-serif font-bold text-[#17243A] border-b border-[#D8C28A] pb-2">
+            <h2 className="border-t-2 border-[#C9A85C] pt-5 text-base font-serif font-bold text-[#17243A]">
               02 Contact & Address Information
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-[#17243A] mb-1">Official Email *</label>
                 <input
@@ -345,7 +338,7 @@ export const AddStaffPage: React.FC = () => {
                   placeholder="Address Line 1"
                   className="w-full text-xs p-2.5 bg-[#F8F4EC] border border-[#D8C28A] rounded-md text-[#17243A]"
                 />
-                <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-3">
                   <input
                     type="text"
                     name="city"
@@ -377,12 +370,12 @@ export const AddStaffPage: React.FC = () => {
         )}
 
         {/* Step 3: Employment */}
-        {currentStep === 3 && (
+        {currentStep === 1 && (
           <div className="space-y-4">
-            <h2 className="text-base font-serif font-bold text-[#17243A] border-b border-[#D8C28A] pb-2">
+            <h2 className="border-t-2 border-[#C9A85C] pt-5 text-base font-serif font-bold text-[#17243A]">
               03 Employment Information
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-[#17243A] mb-1">Employee ID Code *</label>
                 <input
@@ -422,7 +415,7 @@ export const AddStaffPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-[#17243A] mb-1">Department *</label>
                 <select
@@ -456,7 +449,7 @@ export const AddStaffPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-[#17243A] mb-1">Date of Joining</label>
                 <input
@@ -482,9 +475,9 @@ export const AddStaffPage: React.FC = () => {
         )}
 
         {/* Step 4: Qualifications */}
-        {currentStep === 4 && (
+        {currentStep === 1 && (
           <div className="space-y-4">
-            <h2 className="text-base font-serif font-bold text-[#17243A] border-b border-[#D8C28A] pb-2">
+            <h2 className="border-t-2 border-[#C9A85C] pt-5 text-base font-serif font-bold text-[#17243A]">
               04 Academic Qualifications
             </h2>
             <div className="space-y-3">
@@ -510,7 +503,7 @@ export const AddStaffPage: React.FC = () => {
                   className="w-full text-xs p-2.5 bg-[#F8F4EC] border border-[#D8C28A] rounded-md text-[#17243A]"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-3">
                 <div>
                   <label className="block text-xs font-bold text-[#17243A] mb-1">Passing Year</label>
                   <input
@@ -538,9 +531,9 @@ export const AddStaffPage: React.FC = () => {
         )}
 
         {/* Step 5: Experience */}
-        {currentStep === 5 && (
+        {currentStep === 1 && (
           <div className="space-y-4">
-            <h2 className="text-base font-serif font-bold text-[#17243A] border-b border-[#D8C28A] pb-2">
+            <h2 className="border-t-2 border-[#C9A85C] pt-5 text-base font-serif font-bold text-[#17243A]">
               05 Prior Work Experience
             </h2>
             <div className="space-y-3">
@@ -579,9 +572,9 @@ export const AddStaffPage: React.FC = () => {
         )}
 
         {/* Step 6: Subjects */}
-        {currentStep === 6 && (
+        {currentStep === 1 && (
           <div className="space-y-4">
-            <h2 className="text-base font-serif font-bold text-[#17243A] border-b border-[#D8C28A] pb-2">
+            <h2 className="border-t-2 border-[#C9A85C] pt-5 text-base font-serif font-bold text-[#17243A]">
               06 Primary Teaching Subject Allocation
             </h2>
             <div>
@@ -598,9 +591,9 @@ export const AddStaffPage: React.FC = () => {
         )}
 
         {/* Step 7: Documents */}
-        {currentStep === 7 && (
+        {currentStep === 1 && (
           <div className="space-y-4">
-            <h2 className="text-base font-serif font-bold text-[#17243A] border-b border-[#D8C28A] pb-2">
+            <h2 className="border-t-2 border-[#C9A85C] pt-5 text-base font-serif font-bold text-[#17243A]">
               07 Institutional Documents Registration
             </h2>
             <div className="space-y-3">
@@ -641,7 +634,7 @@ export const AddStaffPage: React.FC = () => {
             </h2>
 
             <div className="bg-[#F8F4EC] border border-[#D8C28A] rounded-lg p-4 space-y-3 text-xs">
-              <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-3">
                 <div>
                   <span className="text-[#6F6A60]">Full Name:</span>{' '}
                   <span className="font-bold text-[#17243A]">
@@ -670,6 +663,7 @@ export const AddStaffPage: React.FC = () => {
                 </div>
               </div>
             </div>
+            {reviewError && <p className="font-semibold text-[#722B2B]">{reviewError}</p>}
           </div>
         )}
 
@@ -684,14 +678,13 @@ export const AddStaffPage: React.FC = () => {
             ← Previous Step
           </button>
 
-          {currentStep < 8 ? (
+          {currentStep !== 8 ? (
             <button
               type="button"
-              onClick={handleNext}
+              onClick={openReview}
               className="inline-flex items-center space-x-1.5 px-5 py-2 text-xs font-bold bg-[#C9A85C] text-[#17243A] rounded-lg shadow-xs hover:bg-[#D9BE7A] transition-all"
             >
-              <span>Next Step</span>
-              <ArrowRight className="w-3.5 h-3.5" />
+              <span>Review & Submit</span>
             </button>
           ) : (
             <button

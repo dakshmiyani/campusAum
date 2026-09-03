@@ -3,6 +3,8 @@ import api, { setTenantHeaders } from '../services/api';
 import { Organization, Campus, Institute } from '../types';
 
 interface TenantContextType {
+  phases: string[];
+  activePhase: string;
   organizations: Organization[];
   campuses: Campus[];
   institutes: Institute[];
@@ -12,6 +14,8 @@ interface TenantContextType {
   setActiveOrg: (org: Organization) => void;
   setActiveCampus: (campus: Campus) => void;
   setActiveInstitute: (inst: Institute) => void;
+  setActivePhase: (phase: string) => void;
+  addPhase: (phase: string) => void;
   addCampus: (data: { name: string; code: string; address?: string; city?: string; state?: string; pincode?: string }) => Promise<void>;
   updateCampus: (id: string, data: Partial<Campus>) => Promise<void>;
   deleteCampus: (id: string) => Promise<void>;
@@ -25,6 +29,11 @@ interface TenantContextType {
 const TenantContext = createContext<TenantContextType | undefined>(undefined);
 
 export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [phases, setPhases] = useState<string[]>(() => {
+    const savedPhases = localStorage.getItem('campusaum-phases');
+    return savedPhases ? JSON.parse(savedPhases) : ['Phase 1', 'Phase 2', 'Phase 3'];
+  });
+  const [activePhase, setActivePhaseState] = useState('All Phases');
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [campuses, setCampuses] = useState<Campus[]>([]);
   const [institutes, setInstitutes] = useState<Institute[]>([]);
@@ -120,6 +129,16 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
+  const setActivePhase = (phase: string) => setActivePhaseState(phase);
+
+  const addPhase = (phase: string) => {
+    const normalizedPhase = phase.trim();
+    if (!normalizedPhase || phases.some((item) => item.toLowerCase() === normalizedPhase.toLowerCase())) return;
+    const nextPhases = [...phases, normalizedPhase];
+    setPhases(nextPhases);
+    localStorage.setItem('campusaum-phases', JSON.stringify(nextPhases));
+  };
+
   const addCampus = async (data: { name: string; code: string; address?: string; city?: string; state?: string; pincode?: string }) => {
     const res = await api.post('/campuses', data);
     const newCampus: Campus = res.data.data;
@@ -165,6 +184,8 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   return (
     <TenantContext.Provider
       value={{
+        phases,
+        activePhase,
         organizations,
         campuses,
         institutes,
@@ -174,6 +195,8 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setActiveOrg,
         setActiveCampus,
         setActiveInstitute,
+        setActivePhase,
+        addPhase,
         addCampus,
         updateCampus,
         deleteCampus,

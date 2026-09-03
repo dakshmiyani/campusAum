@@ -8,7 +8,7 @@ import { Link } from 'react-router-dom';
 import { StaffListItem } from '../types';
 
 export const Dashboard: React.FC = () => {
-  const { activeInstitute, activeCampus } = useTenant();
+  const { activeInstitute, activeCampus, activePhase } = useTenant();
   const [summary, setSummary] = useState<any>(null);
   const [recentStaff, setRecentStaff] = useState<StaffListItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,7 +42,7 @@ export const Dashboard: React.FC = () => {
       }
     }
     loadDashboardData();
-  }, [activeInstitute, activeCampus]);
+  }, [activeInstitute, activeCampus, activePhase]);
 
   return (
     <div className="space-y-6">
@@ -51,10 +51,12 @@ export const Dashboard: React.FC = () => {
         <div className="max-w-2xl space-y-2">
           <div className="flex items-center space-x-2">
             <span className="text-xs font-semibold uppercase tracking-wider text-[#722B2B]">
-              Campus Scope: {activeCampus?.name || 'Main Campus'}
+              Campus: {activeCampus?.name || 'Main Campus'}
             </span>
             <span className="text-[#6F6A60]">•</span>
-            <span className="text-xs text-[#6F6A60]">{activeInstitute?.name || 'All Institutes'}</span>
+            <span className="text-xs text-[#6F6A60]">{activePhase}</span>
+            <span className="text-[#6F6A60]">•</span>
+            <span className="text-xs text-[#6F6A60]">{activeInstitute?.name || 'All Education'}</span>
           </div>
           <h1 className="text-2xl font-serif font-bold text-[#17243A]">
             Good Morning, Dr. Rahul Sharma

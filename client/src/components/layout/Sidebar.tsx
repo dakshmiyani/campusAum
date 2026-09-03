@@ -282,6 +282,19 @@ export const Sidebar: React.FC = () => {
         </div>
       </nav>
 
+      <NavLink
+        to="/settings?tab=profile"
+        className={({ isActive }) => `mx-4 mb-3 flex items-center space-x-3 rounded-lg border px-3 py-2.5 transition-all ${
+          isActive ? 'border-[#C9A85C] bg-[#17243A] text-[#C9A85C]' : 'border-[#D8C28A] text-[#17243A] hover:bg-[#F8F4EC]'
+        }`}
+      >
+        <User className="h-4 w-4 shrink-0 text-[#C9A85C]" />
+        <div className="min-w-0">
+          <div className="truncate text-xs font-bold">Administrator</div>
+          <div className="text-[10px] text-[#6F6A60]">View my profile</div>
+        </div>
+      </NavLink>
+
       {/* Footer / System Version */}
       <div className="p-4 border-t border-[#D8C28A] bg-[#EFE8DA] text-[11px] text-[#6F6A60]">
         <div className="flex items-center justify-between">
