@@ -35,6 +35,7 @@ export const StaffDetailPage: React.FC = () => {
   const [showRemarkModal, setShowRemarkModal] = useState(false);
   const [newRemark, setNewRemark] = useState('');
   const [remarkType, setRemarkType] = useState('PRINCIPAL');
+  const [remarkDate, setRemarkDate] = useState(() => new Date().toISOString().split('T')[0]);
 
   const [showIncrementModal, setShowIncrementModal] = useState(false);
   const [incAmount, setIncAmount] = useState('15000');
@@ -56,17 +57,36 @@ export const StaffDetailPage: React.FC = () => {
     fetchStaffDetail();
   }, [id]);
 
+  const formatToDMY = (dateStr?: string) => {
+    if (!dateStr) return '';
+    const cleanStr = dateStr.split('T')[0];
+    const parts = cleanStr.split('-');
+    if (parts.length === 3 && parts[0].length === 4) {
+      const [y, m, d] = parts;
+      return `${d}-${m}-${y}`;
+    }
+    return dateStr;
+  };
+
   const handleAddRemark = async () => {
     if (!id || !newRemark) return;
     try {
+      const rawDate = remarkDate || new Date().toISOString().split('T')[0];
+      const dmyDate = formatToDMY(rawDate);
+      const finalRemark = newRemark.startsWith('[') || newRemark.includes(dmyDate)
+        ? newRemark
+        : `[Date: ${dmyDate}] ${newRemark}`;
+
       await api.post(`/staff/${id}/remarks`, {
         remarkType,
-        remark: newRemark,
+        remark: finalRemark,
+        date: dmyDate,
         createdByName: 'Dr. S. K. Mehta (Principal)',
       });
       alert('Remark recorded successfully!');
       setShowRemarkModal(false);
       setNewRemark('');
+      setRemarkDate(new Date().toISOString().split('T')[0]);
       // Reload detail
       const res = await api.get(`/staff/${id}`);
       setStaff(res.data.data);
@@ -535,18 +555,38 @@ export const StaffDetailPage: React.FC = () => {
           <div className="p-6 bg-[#F8F4EC] space-y-4 text-xs">
             <h3 className="text-sm font-serif font-bold text-[#17243A]">Official Performance Evaluations & Remarks</h3>
             <div className="space-y-3">
-              {remarks?.map((rem) => (
-                <div key={rem.id} className="custom-card p-4 space-y-2 border-l-4 border-l-[#722B2B]">
-                  <div className="flex justify-between items-center">
-                    <span className="font-bold text-[#722B2B]">{rem.remark_type} EVALUATION</span>
-                    <Badge variant="active">{rem.rating || 'OUTSTANDING'}</Badge>
+              {remarks?.map((rem) => {
+                let displayDate = formatToDMY(rem.created_at);
+                let displayRemark = rem.remark || '';
+
+                const dateMatch = displayRemark.match(/^\[Date:\s*([^\]]+)\]\s*/i);
+                if (dateMatch) {
+                  if (!displayDate) {
+                    displayDate = formatToDMY(dateMatch[1]);
+                  }
+                  displayRemark = displayRemark.replace(/^\[Date:\s*[^\]]+\]\s*/i, '');
+                }
+
+                return (
+                  <div key={rem.id} className="custom-card p-4 space-y-2 border-l-4 border-l-[#722B2B]">
+                    <div className="flex justify-between items-center">
+                      <span className="font-bold text-[#722B2B]">{rem.remark_type} EVALUATION</span>
+                      <div className="flex items-center space-x-2">
+                        {displayDate && (
+                          <span className="text-[10px] text-[#6F6A60] font-mono bg-[#EFE8DA] px-2 py-0.5 rounded border border-[#D8C28A]">
+                            📅 {displayDate}
+                          </span>
+                        )}
+                        <Badge variant="active">{rem.rating || 'OUTSTANDING'}</Badge>
+                      </div>
+                    </div>
+                    <p className="text-[#17243A] text-xs italic">"{displayRemark}"</p>
+                    <div className="text-[10px] text-[#6F6A60] text-right">
+                      Recorded by {rem.created_by_name || 'Administrator'}
+                    </div>
                   </div>
-                  <p className="text-[#17243A] text-xs italic">"{rem.remark}"</p>
-                  <div className="text-[10px] text-[#6F6A60] text-right">
-                    — Recorded by {rem.created_by_name || 'Administrator'}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -569,6 +609,15 @@ export const StaffDetailPage: React.FC = () => {
                 <option value="PRINCIPAL">Principal / Director</option>
                 <option value="CHANCELLOR">Chancellor / Trustee</option>
               </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-[#17243A] mb-1">Remark Date *</label>
+              <input
+                type="date"
+                value={remarkDate}
+                onChange={(e) => setRemarkDate(e.target.value)}
+                className="w-full text-xs p-2 bg-[#F8F4EC] border border-[#D8C28A] rounded-md text-[#17243A]"
+              />
             </div>
             <div>
               <label className="block text-xs font-bold text-[#17243A] mb-1">Evaluation Remark *</label>
