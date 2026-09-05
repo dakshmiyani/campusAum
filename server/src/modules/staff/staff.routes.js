@@ -373,6 +373,56 @@ router.post('/:id/remarks', async (req, res, next) => {
   }
 });
 
+// PUT /api/v1/staff/:id/remarks/:remarkId - Edit evaluation remark
+router.put('/:id/remarks/:remarkId', async (req, res, next) => {
+  try {
+    const { remarkType, remark, rating, createdByName, date } = req.body;
+    const todayDMY = formatDMY(date);
+    const finalRemark = (remark && (remark.startsWith('[') || remark.includes(todayDMY)))
+      ? remark
+      : `[Date: ${todayDMY}] ${remark}`;
+
+    const updateData = {
+      remark: finalRemark,
+      updated_at: db.fn.now(),
+    };
+    if (remarkType) updateData.remark_type = remarkType;
+    if (rating) updateData.rating = rating;
+    if (createdByName) updateData.created_by_name = createdByName;
+
+    const updatedCount = await db('staff_remarks')
+      .where({ id: req.params.remarkId, staff_id: req.params.id })
+      .update(updateData);
+
+    if (!updatedCount) {
+      return res.status(404).json({ success: false, message: 'Remark not found.' });
+    }
+
+    res.json({ success: true, message: 'Evaluation remark updated successfully.' });
+  } catch (err) {
+    console.error('Error updating remark:', err);
+    next(err);
+  }
+});
+
+// DELETE /api/v1/staff/:id/remarks/:remarkId - Delete evaluation remark
+router.delete('/:id/remarks/:remarkId', async (req, res, next) => {
+  try {
+    const deletedCount = await db('staff_remarks')
+      .where({ id: req.params.remarkId, staff_id: req.params.id })
+      .del();
+
+    if (!deletedCount) {
+      return res.status(404).json({ success: false, message: 'Remark not found.' });
+    }
+
+    res.json({ success: true, message: 'Evaluation remark deleted successfully.' });
+  } catch (err) {
+    console.error('Error deleting remark:', err);
+    next(err);
+  }
+});
+
 // POST /api/v1/staff/:id/documents - Upload document record
 router.post('/:id/documents', async (req, res, next) => {
   try {

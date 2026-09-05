@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../../services/api';
-import { DetailedStaff } from '../../types';
+import { DetailedStaff, StaffRemark } from '../../types';
 import { Badge } from '../../components/ui/Badge';
 import {
   ArrowLeft,
@@ -23,6 +23,8 @@ import {
   Plus,
   CheckCircle,
   TrendingUp,
+  Pencil,
+  Trash2,
 } from 'lucide-react';
 
 export const StaffDetailPage: React.FC = () => {
@@ -35,7 +37,15 @@ export const StaffDetailPage: React.FC = () => {
   const [showRemarkModal, setShowRemarkModal] = useState(false);
   const [newRemark, setNewRemark] = useState('');
   const [remarkType, setRemarkType] = useState('PRINCIPAL');
+  const [remarkRating, setRemarkRating] = useState('OUTSTANDING');
   const [remarkDate, setRemarkDate] = useState(() => new Date().toISOString().split('T')[0]);
+
+  // Modal State for editing Remark
+  const [editingRemark, setEditingRemark] = useState<StaffRemark | null>(null);
+  const [editRemarkText, setEditRemarkText] = useState('');
+  const [editRemarkType, setEditRemarkType] = useState('PRINCIPAL');
+  const [editRemarkRating, setEditRemarkRating] = useState('OUTSTANDING');
+  const [editRemarkDate, setEditRemarkDate] = useState('');
 
   const [showIncrementModal, setShowIncrementModal] = useState(false);
   const [incAmount, setIncAmount] = useState('15000');
@@ -79,6 +89,7 @@ export const StaffDetailPage: React.FC = () => {
 
       await api.post(`/staff/${id}/remarks`, {
         remarkType,
+        rating: remarkRating,
         remark: finalRemark,
         date: dmyDate,
         createdByName: 'Dr. S. K. Mehta (Principal)',
@@ -86,12 +97,76 @@ export const StaffDetailPage: React.FC = () => {
       alert('Remark recorded successfully!');
       setShowRemarkModal(false);
       setNewRemark('');
+      setRemarkRating('OUTSTANDING');
       setRemarkDate(new Date().toISOString().split('T')[0]);
       // Reload detail
       const res = await api.get(`/staff/${id}`);
       setStaff(res.data.data);
     } catch (err) {
       alert('Error recording remark.');
+    }
+  };
+
+  const handleOpenEditRemark = (rem: StaffRemark) => {
+    setEditingRemark(rem);
+    setEditRemarkType(rem.remark_type || 'PRINCIPAL');
+    setEditRemarkRating(rem.rating || 'OUTSTANDING');
+
+    let text = rem.remark || '';
+    let dateVal = rem.created_at ? rem.created_at.split('T')[0] : new Date().toISOString().split('T')[0];
+
+    const dateMatch = text.match(/^\[Date:\s*([^\]]+)\]\s*/i);
+    if (dateMatch) {
+      const rawD = dateMatch[1];
+      if (rawD.includes('-') && rawD.split('-')[0].length === 2) {
+        const [d, m, y] = rawD.split('-');
+        dateVal = `${y}-${m}-${d}`;
+      } else {
+        dateVal = rawD;
+      }
+      text = text.replace(/^\[Date:\s*[^\]]+\]\s*/i, '');
+    }
+
+    setEditRemarkText(text);
+    setEditRemarkDate(dateVal);
+  };
+
+  const handleSaveEditRemark = async () => {
+    if (!id || !editingRemark || !editRemarkText) return;
+    try {
+      const rawDate = editRemarkDate || new Date().toISOString().split('T')[0];
+      const dmyDate = formatToDMY(rawDate);
+      const finalRemark = editRemarkText.startsWith('[') || editRemarkText.includes(dmyDate)
+        ? editRemarkText
+        : `[Date: ${dmyDate}] ${editRemarkText}`;
+
+      await api.put(`/staff/${id}/remarks/${editingRemark.id}`, {
+        remarkType: editRemarkType,
+        rating: editRemarkRating,
+        remark: finalRemark,
+        date: dmyDate,
+      });
+      alert('Remark updated successfully!');
+      setEditingRemark(null);
+      // Reload detail
+      const res = await api.get(`/staff/${id}`);
+      setStaff(res.data.data);
+    } catch (err) {
+      alert('Error updating remark.');
+    }
+  };
+
+  const handleDeleteRemark = async (remarkId: string) => {
+    if (!id || !remarkId) return;
+    if (!window.confirm('Are you sure you want to delete this evaluation remark?')) return;
+    try {
+      await api.delete(`/staff/${id}/remarks/${remarkId}`);
+      alert('Remark deleted successfully!');
+      // Reload detail
+      const res = await api.get(`/staff/${id}`);
+      setStaff(res.data.data);
+    } catch (err) {
+      alert('Error deleting remark.');
     }
   };
 
@@ -553,40 +628,67 @@ export const StaffDetailPage: React.FC = () => {
         {/* Tab 10: Remarks & Evaluation */}
         {activeTab === 'remarks' && (
           <div className="p-6 bg-[#F8F4EC] space-y-4 text-xs">
-            <h3 className="text-sm font-serif font-bold text-[#17243A]">Official Performance Evaluations & Remarks</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-serif font-bold text-[#17243A]">Official Performance Evaluations & Remarks</h3>
+              <button
+                onClick={() => setShowRemarkModal(true)}
+                className="px-3.5 py-1.5 bg-[#17243A] text-white rounded-lg text-xs font-semibold hover:bg-[#243552] transition-colors flex items-center space-x-1"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>+ Add Remark</span>
+              </button>
+            </div>
             <div className="space-y-3">
-              {remarks?.map((rem) => {
-                let displayDate = formatToDMY(rem.created_at);
-                let displayRemark = rem.remark || '';
+              {(!remarks || remarks.length === 0) ? (
+                <div className="text-center py-8 text-[#6F6A60]">No performance evaluation remarks recorded yet.</div>
+              ) : (
+                remarks.map((rem) => {
+                  let displayDate = formatToDMY(rem.created_at);
+                  let displayRemark = rem.remark || '';
 
-                const dateMatch = displayRemark.match(/^\[Date:\s*([^\]]+)\]\s*/i);
-                if (dateMatch) {
-                  if (!displayDate) {
-                    displayDate = formatToDMY(dateMatch[1]);
+                  const dateMatch = displayRemark.match(/^\[Date:\s*([^\]]+)\]\s*/i);
+                  if (dateMatch) {
+                    if (!displayDate) {
+                      displayDate = formatToDMY(dateMatch[1]);
+                    }
+                    displayRemark = displayRemark.replace(/^\[Date:\s*[^\]]+\]\s*/i, '');
                   }
-                  displayRemark = displayRemark.replace(/^\[Date:\s*[^\]]+\]\s*/i, '');
-                }
 
-                return (
-                  <div key={rem.id} className="custom-card p-4 space-y-2 border-l-4 border-l-[#722B2B]">
-                    <div className="flex justify-between items-center">
-                      <span className="font-bold text-[#722B2B]">{rem.remark_type} EVALUATION</span>
-                      <div className="flex items-center space-x-2">
-                        {displayDate && (
-                          <span className="text-[10px] text-[#6F6A60] font-mono bg-[#EFE8DA] px-2 py-0.5 rounded border border-[#D8C28A]">
-                            📅 {displayDate}
-                          </span>
-                        )}
-                        <Badge variant="active">{rem.rating || 'OUTSTANDING'}</Badge>
+                  return (
+                    <div key={rem.id} className="custom-card p-4 space-y-2 border-l-4 border-l-[#722B2B]">
+                      <div className="flex justify-between items-center">
+                        <span className="font-bold text-[#722B2B]">{rem.remark_type} EVALUATION</span>
+                        <div className="flex items-center space-x-2">
+                          {displayDate && (
+                            <span className="text-[10px] text-[#6F6A60] font-mono bg-[#EFE8DA] px-2 py-0.5 rounded border border-[#D8C28A]">
+                              📅 {displayDate}
+                            </span>
+                          )}
+                          <Badge variant="active">{rem.rating || 'OUTSTANDING'}</Badge>
+                          <button
+                            onClick={() => handleOpenEditRemark(rem)}
+                            title="Edit Remark"
+                            className="p-1 text-[#17243A] hover:text-[#722B2B] hover:bg-[#EFE8DA] rounded transition-colors cursor-pointer"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteRemark(rem.id)}
+                            title="Delete Remark"
+                            className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                      <p className="text-[#17243A] text-xs italic">"{displayRemark}"</p>
+                      <div className="text-[10px] text-[#6F6A60] text-right">
+                        Recorded by {rem.created_by_name || 'Administrator'}
                       </div>
                     </div>
-                    <p className="text-[#17243A] text-xs italic">"{displayRemark}"</p>
-                    <div className="text-[10px] text-[#6F6A60] text-right">
-                      Recorded by {rem.created_by_name || 'Administrator'}
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
           </div>
         )}
@@ -608,6 +710,20 @@ export const StaffDetailPage: React.FC = () => {
                 <option value="HOD">Head of Department (HOD)</option>
                 <option value="PRINCIPAL">Principal / Director</option>
                 <option value="CHANCELLOR">Chancellor / Trustee</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-[#17243A] mb-1">Performance Rating</label>
+              <select
+                value={remarkRating}
+                onChange={(e) => setRemarkRating(e.target.value)}
+                className="w-full text-xs p-2 bg-[#F8F4EC] border border-[#D8C28A] rounded-md text-[#17243A]"
+              >
+                <option value="OUTSTANDING">Outstanding</option>
+                <option value="VERY_GOOD">Very Good</option>
+                <option value="GOOD">Good</option>
+                <option value="SATISFACTORY">Satisfactory</option>
+                <option value="NEEDS_IMPROVEMENT">Needs Improvement</option>
               </select>
             </div>
             <div>
@@ -641,6 +757,75 @@ export const StaffDetailPage: React.FC = () => {
                 className="px-4 py-1.5 text-xs font-bold bg-[#17243A] text-white rounded-md hover:bg-[#243552]"
               >
                 Save Remark
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Remark Modal */}
+      {editingRemark && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-[#EFE8DA] border border-[#D8C28A] rounded-xl p-6 w-full max-w-md space-y-4 shadow-xl">
+            <h3 className="text-base font-serif font-bold text-[#17243A]">Edit Performance Remark</h3>
+            <div>
+              <label className="block text-xs font-bold text-[#17243A] mb-1">Authority Type</label>
+              <select
+                value={editRemarkType}
+                onChange={(e) => setEditRemarkType(e.target.value)}
+                className="w-full text-xs p-2 bg-[#F8F4EC] border border-[#D8C28A] rounded-md text-[#17243A]"
+              >
+                <option value="REPORTING_AUTHORITY">Reporting Authority</option>
+                <option value="HOD">Head of Department (HOD)</option>
+                <option value="PRINCIPAL">Principal / Director</option>
+                <option value="CHANCELLOR">Chancellor / Trustee</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-[#17243A] mb-1">Performance Rating</label>
+              <select
+                value={editRemarkRating}
+                onChange={(e) => setEditRemarkRating(e.target.value)}
+                className="w-full text-xs p-2 bg-[#F8F4EC] border border-[#D8C28A] rounded-md text-[#17243A]"
+              >
+                <option value="OUTSTANDING">Outstanding</option>
+                <option value="VERY_GOOD">Very Good</option>
+                <option value="GOOD">Good</option>
+                <option value="SATISFACTORY">Satisfactory</option>
+                <option value="NEEDS_IMPROVEMENT">Needs Improvement</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-[#17243A] mb-1">Remark Date *</label>
+              <input
+                type="date"
+                value={editRemarkDate}
+                onChange={(e) => setEditRemarkDate(e.target.value)}
+                className="w-full text-xs p-2 bg-[#F8F4EC] border border-[#D8C28A] rounded-md text-[#17243A]"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-[#17243A] mb-1">Evaluation Remark *</label>
+              <textarea
+                value={editRemarkText}
+                onChange={(e) => setEditRemarkText(e.target.value)}
+                rows={4}
+                className="w-full text-xs p-2 bg-[#F8F4EC] border border-[#D8C28A] rounded-md text-[#17243A]"
+                placeholder="Enter evaluation notes..."
+              />
+            </div>
+            <div className="flex justify-end space-x-3 pt-2">
+              <button
+                onClick={() => setEditingRemark(null)}
+                className="px-4 py-1.5 text-xs text-[#17243A] bg-[#F8F4EC] border border-[#D8C28A] rounded-md"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveEditRemark}
+                className="px-4 py-1.5 text-xs font-bold bg-[#17243A] text-white rounded-md hover:bg-[#243552]"
+              >
+                Update Remark
               </button>
             </div>
           </div>
